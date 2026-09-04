@@ -32,9 +32,39 @@ import java.time.chrono.HijrahDate
 import java.time.temporal.ChronoField
 import java.time.temporal.ChronoUnit
 
-enum class AtharTab {
-    HOME, QURAN, AZKAR, HIJRI, PRAYER_TIMES, QIBLA, TASBIH, AUDIOPLAYER, DOWNLOADS, FAVORITES, SETTINGS, ABOUT
+/**
+ * وجهات التنقّل داخل التطبيق.
+ * [isRoot] تعني أنّها من وجهات الشريط السفلي (لا تتراكم في مكدّس الرجوع).
+ */
+enum class AtharTab(val isRoot: Boolean = false) {
+    HOME(isRoot = true),
+    QURAN(isRoot = true),
+    AZKAR(isRoot = true),
+    PRAYER_TIMES(isRoot = true),
+    MORE(isRoot = true),
+    HIJRI,
+    QIBLA,
+    TASBIH,
+    AUDIOPLAYER,
+    DOWNLOADS,
+    FAVORITES,
+    SETTINGS,
+    ABOUT,
 }
+
+/** أذكار السبحة الإلكترونية. */
+data class TasbihPhrase(val text: String, val target: Int, val virtue: String = "")
+
+val TASBIH_PHRASES = listOf(
+    TasbihPhrase("سُبْحَانَ اللهِ", 33, "غرست له نخلة في الجنة"),
+    TasbihPhrase("الْحَمْدُ للهِ", 33, "تملأ الميزان"),
+    TasbihPhrase("اللهُ أَكْبَرُ", 34, "تملأ ما بين السماء والأرض"),
+    TasbihPhrase("لَا إِلَهَ إِلَّا اللهُ", 100, "أفضل الذكر"),
+    TasbihPhrase("أَسْتَغْفِرُ اللهَ", 100, "جعل الله له من كل ضيق مخرجاً"),
+    TasbihPhrase("لَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللهِ", 100, "كنز من كنوز الجنة"),
+    TasbihPhrase("اللَّهُمَّ صَلِّ عَلَى مُحَمَّدٍ", 100, "صلى الله عليه بها عشراً"),
+    TasbihPhrase("سُبْحَانَ اللهِ وَبِحَمْدِهِ", 100, "حُطّت خطاياه وإن كانت مثل زبد البحر"),
+)
 
 class AtharViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AtharRepository(application)
@@ -48,13 +78,42 @@ class AtharViewModel(application: Application) : AndroidViewModel(application) {
         application.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     }
 
-    // 1. Tab Navigation State
-    private val _currentTab = MutableStateFlow(AtharTab.HOME) // Default to Home Dashboard
+    // 1. Tab Navigation State — مكدّس تنقّل حقيقي يدعم زر الرجوع في النظام
+    private val _backStack = MutableStateFlow(listOf(AtharTab.HOME))
+    val backStack: StateFlow<List<AtharTab>> = _backStack.asStateFlow()
+
+    private val _currentTab = MutableStateFlow(AtharTab.HOME)
     val currentTab: StateFlow<AtharTab> = _currentTab.asStateFlow()
 
-    fun selectTab(tab: AtharTab) {
+    /** الانتقال إلى وجهة. وجهات الجذر تُصفّر المكدّس، وغيرها تُضاف إليه. */
+    fun navigateTo(tab: AtharTab) {
+        val stack = _backStack.value
+        if (stack.lastOrNull() == tab) return
+        _backStack.value = when {
+            tab.isRoot && tab == AtharTab.HOME -> listOf(AtharTab.HOME)
+            tab.isRoot -> listOf(AtharTab.HOME, tab)
+            else -> stack + tab
+        }
         _currentTab.value = tab
     }
+
+    /** رجوع خطوة. يعيد false إذا لم يعد هناك ما يُرجع إليه (يُغلق التطبيق). */
+    fun navigateBack(): Boolean {
+        val stack = _backStack.value
+        if (stack.size <= 1) return false
+        val newStack = stack.dropLast(1)
+        _backStack.value = newStack
+        _currentTab.value = newStack.last()
+        return true
+    }
+
+    fun navigateHome() {
+        _backStack.value = listOf(AtharTab.HOME)
+        _currentTab.value = AtharTab.HOME
+    }
+
+    @Deprecated("استخدم navigateTo", ReplaceWith("navigateTo(tab)"))
+    fun selectTab(tab: AtharTab) = navigateTo(tab)
 
     // 2. Settings States
     val isDarkMode: StateFlow<Boolean> = repository.getSettingFlow("dark_mode", "false")
@@ -150,6 +209,108 @@ class AtharViewModel(application: Application) : AndroidViewModel(application) {
     val eveningNotificationTime = MutableStateFlow("17:30")
     val sleepNotificationTime = MutableStateFlow("22:00")
 
+    // ---------------------------------------------------------------------
+    // السبحة الإلكترونية
+    // ---------------------------------------------------------------------
+    val tasbihPhraseIndex = MutableStateFlow(0)
+    val tasbihCount = MutableStateFlow(0)
+    val tasbihRounds = MutableStateFlow(0)
+    val tasbihTotal = MutableStateFlow(0)
+    val tasbihVibrate = MutableStateFlow(true)
+
+    fun selectTasbihPhrase(index: Int) {
+        if (index !in TASBIH_PHRASES.indices) return
+        tasbihPhraseIndex.value = index
+        tasbihCount.value = 0
+        savePreference("tasbih_phrase", index.toString())
+        persistTasbih()
+    }
+
+    fun incrementTasbih() {
+        val target = TASBIH_PHRASES[tasbihPhraseIndex.value].target
+        val next = tasbihCount.value + 1
+        tasbihTotal.value = tasbihTotal.value + 1
+        if (next >= target) {
+            tasbihCount.value = 0
+            tasbihRounds.value = tasbihRounds.value + 1
+            if (tasbihVibrate.value) vibrateDevice(180)
+        } else {
+            tasbihCount.value = next
+            if (tasbihVibrate.value) vibrateDevice(24)
+        }
+        persistTasbih()
+    }
+
+    fun resetTasbih() {
+        tasbihCount.value = 0
+        tasbihRounds.value = 0
+        persistTasbih()
+    }
+
+    fun resetTasbihTotal() {
+        tasbihTotal.value = 0
+        persistTasbih()
+    }
+
+    fun setTasbihVibrate(enabled: Boolean) {
+        tasbihVibrate.value = enabled
+        savePreference("tasbih_vibrate", enabled)
+    }
+
+    private fun persistTasbih() {
+        savePreference("tasbih_count", tasbihCount.value.toString())
+        savePreference("tasbih_rounds", tasbihRounds.value.toString())
+        savePreference("tasbih_total", tasbihTotal.value.toString())
+    }
+
+    // ---------------------------------------------------------------------
+    // الصلاة القادمة
+    // ---------------------------------------------------------------------
+    data class NextPrayer(
+        val name: String,
+        val time24: String,
+        val timeMs: Long,
+        val isTomorrow: Boolean,
+    )
+
+    /** يحسب الصلاة القادمة بالاعتماد على المواقيت المحسوبة حالياً. */
+    fun computeNextPrayer(nowMs: Long = System.currentTimeMillis()): NextPrayer? {
+        val t = prayerTimes.value ?: return null
+        val list = listOf(
+            Triple("الفجر", t.fajr, t.rawFajrMs),
+            Triple("الشروق", t.sunrise, t.rawSunriseMs),
+            Triple("الظهر", t.dhuhr, t.rawDhuhrMs),
+            Triple("العصر", t.asr, t.rawAsrMs),
+            Triple("المغرب", t.maghrib, t.rawMaghribMs),
+            Triple("العشاء", t.isha, t.rawIshaMs),
+        )
+        val upcoming = list.firstOrNull { it.third > nowMs }
+        if (upcoming != null) {
+            return NextPrayer(upcoming.first, upcoming.second, upcoming.third, false)
+        }
+        // كل مواقيت اليوم مضت ⇒ فجر الغد
+        val first = list.first()
+        return NextPrayer(first.first, first.second, first.third + 24L * 60L * 60L * 1000L, true)
+    }
+
+    /** اسم الصلاة الحالية (التي دخل وقتها ولم تنتهِ بعد). */
+    fun currentPrayerName(nowMs: Long = System.currentTimeMillis()): String? {
+        val t = prayerTimes.value ?: return null
+        val list = listOf(
+            "الفجر" to t.rawFajrMs,
+            "الشروق" to t.rawSunriseMs,
+            "الظهر" to t.rawDhuhrMs,
+            "العصر" to t.rawAsrMs,
+            "المغرب" to t.rawMaghribMs,
+            "العشاء" to t.rawIshaMs,
+        )
+        var current: String? = null
+        for ((name, ms) in list) {
+            if (ms <= nowMs) current = name
+        }
+        return current
+    }
+
     init {
         loadAzkar()
         loadQuranOutline()
@@ -167,6 +328,14 @@ class AtharViewModel(application: Application) : AndroidViewModel(application) {
         morningNotificationTime.value = prefs.getString("morning_time", "05:30") ?: "05:30"
         eveningNotificationTime.value = prefs.getString("evening_time", "17:30") ?: "17:30"
         sleepNotificationTime.value = prefs.getString("sleep_time", "22:00") ?: "22:00"
+
+        // السبحة
+        tasbihPhraseIndex.value = (prefs.getString("tasbih_phrase", "0") ?: "0").toIntOrNull()
+            ?.coerceIn(0, TASBIH_PHRASES.lastIndex) ?: 0
+        tasbihCount.value = (prefs.getString("tasbih_count", "0") ?: "0").toIntOrNull() ?: 0
+        tasbihRounds.value = (prefs.getString("tasbih_rounds", "0") ?: "0").toIntOrNull() ?: 0
+        tasbihTotal.value = (prefs.getString("tasbih_total", "0") ?: "0").toIntOrNull() ?: 0
+        tasbihVibrate.value = prefs.getBoolean("tasbih_vibrate", true)
 
         val isFetched = prefs.getBoolean("is_location_fetched", false)
         isLocationFetched.value = isFetched

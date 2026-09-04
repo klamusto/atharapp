@@ -3,6 +3,7 @@ package com.example.data
 import java.util.Calendar
 import java.util.TimeZone
 import kotlin.math.*
+import java.util.Locale
 
 object PrayerTimesCalculator {
 
@@ -131,7 +132,7 @@ object PrayerTimesCalculator {
         val rawMaghrib = calBase.timeInMillis + (maghribHour * 3600000).toLong()
         val rawIsha = calBase.timeInMillis + (ishaHour * 3600000).toLong()
 
-        val dateStr = String.format("%04d-%02d-%02d", year, month, day)
+        val dateStr = String.format(Locale.US, "%04d-%02d-%02d", year, month, day)
 
         return PrayerTimes(
             fajr = formatHour(fajrHour),
@@ -199,6 +200,6 @@ object PrayerTimesCalculator {
         val totalMinutes = floor(h * 60.0 + 0.5).toInt()
         val hours = (totalMinutes / 60) % 24
         val minutes = totalMinutes % 60
-        return String.format("%02d:%02d", hours, minutes)
+        return String.format(Locale.US, "%02d:%02d", hours, minutes)
     }
 }

@@ -2,15 +2,13 @@
 <resources>
 
     <style name="Theme.Athar" parent="android:Theme.DeviceDefault.NoActionBar">
-        <item name="android:windowBackground">@color/athar_surface_light</item>
-        <item name="android:colorBackground">@color/athar_surface_light</item>
+        <item name="android:windowBackground">@color/athar_surface_dark</item>
+        <item name="android:colorBackground">@color/athar_surface_dark</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:windowAnimationStyle">@android:style/Animation.Activity</item>
     </style>
 
-    <!-- اسم قديم مُبقى للتوافق -->
     <style name="Theme.MyApplication" parent="Theme.Athar" />
 </resources>
