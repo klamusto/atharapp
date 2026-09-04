@@ -21,6 +21,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Locale
 
 enum class RepeatMode {
     OFF, ONE, ALL
@@ -73,7 +74,7 @@ object SurahPlaybackManager {
     }
 
     fun getSurahFile(context: Context, surahNumber: Int, reciter: String): File {
-        return File(getReciterDir(context, reciter), String.format("%03d.mp3", surahNumber))
+        return File(getReciterDir(context, reciter), String.format(Locale.US, "%03d.mp3", surahNumber))
     }
 
     fun isSurahDownloaded(context: Context, surahNumber: Int, reciter: String): Boolean {
@@ -133,7 +134,7 @@ object SurahPlaybackManager {
             try {
                 downloadProgress.value = downloadProgress.value + (surahNumber to 0f)
                 
-                val url = URL("$serverUrlPrefix${String.format("%03d", surahNumber)}.mp3")
+                val url = URL("$serverUrlPrefix${String.format(Locale.US, "%03d", surahNumber)}.mp3")
                 val connection = url.openConnection() as HttpURLConnection
                 connection.connectTimeout = 15000
                 connection.readTimeout = 15000
@@ -149,7 +150,7 @@ object SurahPlaybackManager {
                     reciterDir.mkdirs()
                 }
                 
-                val tempFile = File(reciterDir, String.format("%03d.tmp", surahNumber))
+                val tempFile = File(reciterDir, String.format(Locale.US, "%03d.tmp", surahNumber))
                 val targetFile = getSurahFile(context, surahNumber, reciter)
                 
                 connection.inputStream.use { input ->
@@ -309,7 +310,7 @@ class QuranAudioService : Service() {
                         val file = SurahPlaybackManager.getSurahFile(applicationContext, surahNumber, reciter.id)
                         setDataSource(file.absolutePath)
                     } else {
-                        val formattedNum = String.format("%03d", surahNumber)
+                        val formattedNum = String.format(Locale.US, "%03d", surahNumber)
                         setDataSource("${reciter.serverUrl}$formattedNum.mp3")
                     }
 
