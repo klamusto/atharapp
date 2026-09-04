@@ -9,7 +9,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -201,7 +203,7 @@ fun AtharCard(
     border: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
     shape: RoundedCornerShape = RoundedCornerShape(20.dp),
     contentPadding: PaddingValues = PaddingValues(16.dp),
-    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
 ) {
     val clickModifier = if (onClick != null) Modifier.clickable { onClick() } else Modifier
     Surface(
@@ -539,7 +541,7 @@ private fun DrawScope.drawEightPointStar(center: Offset, radius: Float, color: C
 fun GradientHero(
     modifier: Modifier = Modifier,
     shape: RoundedCornerShape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp),
-    content: @Composable androidx.compose.foundation.layout.BoxScope.() -> Unit,
+    content: @Composable BoxScope.() -> Unit,
 ) {
     val extra = AtharTheme.extra
     Box(

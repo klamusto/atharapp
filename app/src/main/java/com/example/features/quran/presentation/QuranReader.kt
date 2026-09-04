@@ -323,8 +323,8 @@ private fun QuranPage(
                     onClick = { offset ->
                         annotated.getStringAnnotations("ayah", offset, offset)
                             .firstOrNull()
-                            ?.let { annotation ->
-                                val number = annotation.item.toIntOrNull()
+                            ?.let { marker ->
+                                val number = marker.item.toIntOrNull()
                                 val ayah = list.firstOrNull { it.number == number }
                                 if (ayah != null) onAyahClick(ayah)
                             }
