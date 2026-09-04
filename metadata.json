@@ -1,0 +1,6 @@
+{
+  "name": "أثر",
+  "description": "تطبيق إسلامي متكامل يحتوي على قارئ القرآن الكريم، حصن المسلم والأذكار اليومية مع ميزة إعادة الترتيب، والتاريخ الهجري والمناسبات الدينية بدقة عالية بالكامل دون الحاجة للإنترنت.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
